@@ -101,15 +101,31 @@ def get_event_list(request):
 
 def add_guest(request):
     if request.method == 'POST':
-        id = request.POST.get("id")
+        event_id = request.POST.get("id")
         name = request.POST.get("name")
         phone_number = request.POST.get("phone_number")
         email = request.POST.get("email")
         if id and name and phone_number:
-            meeting = Meeting.objects.filter(id=id)
-            if meeting:
-                guest = Guest.objects.filter(guest_id=id)
-                pass
+            meeting = Meeting.objects.filter(id=event_id)
+            if meeting.exists():
+                guest = Guest.objects.filter(phone_number=phone_number)
+                if not guest.exists():
+                    if len(Guest.objects.filter(meeting=meeting.first())) < meeting.first().limit:
+                        guest = Guest.objects.create(name=name, phone_number=phone_number, email=email)
+                        guest.meeting.add(meeting.first())
+                        res = {
+                            "error_code": 0,
+                            "data": {
+                                "event_id": meeting.first().id,
+                                "guest_id": guest.id,
+                            }
+                        }
+                        return JsonResponse(res)
+                    else:
+                        return JsonResponse({"error_code": 10006})
+                else:
+                    return JsonResponse({"error_code": 10005})
+
             else:
                 return JsonResponse({"error_code": 10004})
         else:
